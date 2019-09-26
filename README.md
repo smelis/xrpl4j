@@ -1,7 +1,7 @@
 # xrpl4j
-A (limited) Java WebSocket client for the XRP ledger (https://github.com/ripple/rippled).
+A (limited) Java WebSocket client for the [XRP ledger](https://github.com/ripple/rippled).
 
-With this library you can subscribe to the ledger's streams (https://xrpl.org/websocket-api-tool.html#subscribe) to get periodic notifications of server status, transactions, and ledgers.
+With this library you can subscribe to the [ledger's streams](https://xrpl.org/websocket-api-tool.html#subscribe) to get periodic notifications of server status, transactions, and ledgers.
 
 To get a client:
 
@@ -10,7 +10,7 @@ XRPLedgerClient client = new XRPLedgerClient("wss://s1.ripple.com");
 client.connectBlocking();
 ```
 
-To subscribe to the transaction stream and ledger stream (this should implement StreamSubscriber):
+To subscribe to the transaction stream and ledger stream (`this` should implement [StreamSubscriber](https://github.com/smelis/xrpl4j/blob/master/src/main/java/nl/saccharum/xrpl4j/StreamSubscriber.java)):
 
 ```java
 client.subscribe(EnumSet.of(StreamSubscription.TRANSACTIONS, StreamSubscription.LEDGER), this);
