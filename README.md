@@ -22,6 +22,6 @@ Receive stream events in the subscriber:
 @Override
 public void onSubscription(StreamSubscription subscription, JSONObject message) {
     LOG.info("subscription returned a {} message", subscription.getMessageType());
-    buffer.offer(message);
+    // handle transaction || ledger message
 }
 ```
