@@ -28,14 +28,8 @@ public void onSubscription(StreamSubscription subscription, JSONObject message) 
 A complete example that sends two commands and subscribes to the transaction stream until it has received 100 transactions, then closes the client:
 
 ```java
-
-/**
-* Example usage that shows how to send (raw) commands to the server and
-* how to handle the response.
-*/
 public static void main(String[] args) throws URISyntaxException, InterruptedException, InvalidStateException {
 
-    // Example usage for sending commands to the server:
     XRPLedgerClient client = new XRPLedgerClient("wss://fh.xrpl.ws");
 
     client.connectBlocking(3000, TimeUnit.MILLISECONDS);
