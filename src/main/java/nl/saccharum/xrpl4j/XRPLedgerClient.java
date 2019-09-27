@@ -2,15 +2,10 @@ package nl.saccharum.xrpl4j;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
@@ -159,43 +154,6 @@ public final class XRPLedgerClient extends WebSocketClient {
     @Override
     public void onError(Exception exception) {
         LOG.error("XRP ledger client error {}", exception);
-    }
-
-    /**
-     * Example usage that shows how to send (raw) commands to the server and
-     * how to handle the response.
-     */
-    public static void main(String[] args) throws URISyntaxException, InterruptedException, InvalidStateException {
-
-        // Example usage for sending commands to the server:
-        XRPLedgerClient client = new XRPLedgerClient("wss://fh.xrpl.ws");
-
-        client.connectBlocking(3000, TimeUnit.MILLISECONDS);
-        client.sendCommand("ledger_current", (response) -> {
-            LOG.info(response.toString(4));
-        });
-
-        Map<String, Object> parameters = new HashMap<>();
-        parameters.put("ledger_index", "validated");
-        client.sendCommand("ledger", parameters, (response) -> {
-            LOG.info(response.toString(4));
-        });
-
-        List<String> transactions = new ArrayList<>();
-        client.subscribe(EnumSet.of(StreamSubscription.TRANSACTIONS), (subscription, message) -> {
-            LOG.info("Got message from subscription {}: {}", subscription.getMessageType(), message);
-            transactions.add(message.toString());
-        });
-
-        client.closeWhenComplete();
-
-        while (client.isOpen()) {
-            LOG.info("Waiting for messages (transactions received: {})...", transactions.size());
-            Thread.sleep(100);
-            if (transactions.size() >= 30 && !client.getActiveSubscriptions().isEmpty()) {
-                client.unsubscribe(client.getActiveSubscriptions());
-            }
-        }
     }
 
 }
