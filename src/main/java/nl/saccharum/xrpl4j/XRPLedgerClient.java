@@ -67,7 +67,7 @@ public final class XRPLedgerClient extends WebSocketClient {
 
         return id;
     }
-    
+
     @Override
     public void send(String message) {
         LOG.info("Sending message: {}", message);
@@ -120,25 +120,27 @@ public final class XRPLedgerClient extends WebSocketClient {
         long start = System.currentTimeMillis();
         LOG.info("XRPL client received a message:\n{}", message);
         JSONObject json = new JSONObject(message);
+
         if (messageCount++ % 10 == 0) {
             LOG.info("Pinging server (keepalive) after {} messages received", messageCount);
             sendPing();
         }
+
         if (json.has(ATTRIBUTE_TYPE) && (StreamSubscription.byMessageType(json.getString(ATTRIBUTE_TYPE)) != null)) {
             StreamSubscription ss = StreamSubscription.byMessageType(json.getString(ATTRIBUTE_TYPE));
             StreamSubscriber sub = activeSubscriptions.get(ss);
             if (sub != null) {
                 sub.onSubscription(ss, json);
             }
-        } else {
-            if (json.has(ATTRIBUTE_ID) && commandListeners.get(json.getString(ATTRIBUTE_ID)) != null) {
-                commandListeners.get(json.getString(ATTRIBUTE_ID)).onResponse(json);
-                commandListeners.remove(json.getString(ATTRIBUTE_ID));
-                if (closeWhenComplete && commandListeners.isEmpty() && activeSubscriptions.isEmpty()) {
-                    close();
-                }
-            }
+        } else if (json.has(ATTRIBUTE_ID) && commandListeners.get(json.getString(ATTRIBUTE_ID)) != null) {
+            commandListeners.get(json.getString(ATTRIBUTE_ID)).onResponse(json);
+            commandListeners.remove(json.getString(ATTRIBUTE_ID));
         }
+
+        if (closeWhenComplete && commandListeners.isEmpty() && activeSubscriptions.isEmpty()) {
+            close();
+        }
+
         LOG.info("Ledger message processed in {}ms", System.currentTimeMillis() - start);
     }
 
@@ -155,26 +157,31 @@ public final class XRPLedgerClient extends WebSocketClient {
     }
 
     /**
-    * Example usage that shows how to send (raw) commands to the server and
-    * how to handle the response.
-    */
+     * Example usage that shows how to send (raw) commands to the server and
+     * how to handle the response.
+     */
     public static void main(String[] args) throws URISyntaxException, InterruptedException {
-        
+
         // Example usage for sending commands to the server:
-        
         XRPLedgerClient client = new XRPLedgerClient("wss://fh.xrpl.ws");
 
         client.connectBlocking(3000, TimeUnit.MILLISECONDS);
         client.sendCommand("ledger_current", (response) -> {
             LOG.info(response.toString(4));
-            try { Thread.sleep(1000); } catch (InterruptedException ex) {};
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ex) {
+            };
         });
 
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("ledger_index", "validated");
         client.sendCommand("ledger", parameters, (response) -> {
             LOG.info(response.toString(4));
-            try { Thread.sleep(1000); } catch (InterruptedException ex) {};
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ex) {
+            };
         });
 
         client.closeWhenComplete();
