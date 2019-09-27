@@ -60,7 +60,7 @@ public static void main(String[] args) throws URISyntaxException, InterruptedExc
     while (client.isOpen()) {
         LOG.info("Waiting for messages (transactions received: {})...", transactions.size());
         Thread.sleep(100);
-        if (transactions.size() >= 30 && !client.getActiveSubscriptions().isEmpty()) {
+        if (transactions.size() >= 100 && !client.getActiveSubscriptions().isEmpty()) {
             client.unsubscribe(client.getActiveSubscriptions());
         }
     }
