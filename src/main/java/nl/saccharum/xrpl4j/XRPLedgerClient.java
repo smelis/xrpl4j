@@ -2,12 +2,15 @@ package nl.saccharum.xrpl4j;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
@@ -45,11 +48,12 @@ public final class XRPLedgerClient extends WebSocketClient {
         this(new URI(serverUri));
     }
 
-    public String sendCommand(String command, CommandListener listener) {
+    public String sendCommand(String command, CommandListener listener) throws InvalidStateException {
         return sendCommand(command, null, listener);
     }
 
-    public String sendCommand(String command, Map<String, Object> parameters, CommandListener listener) {
+    public String sendCommand(String command, Map<String, Object> parameters, CommandListener listener) throws InvalidStateException {
+        checkOpen();
         String id = UUID.randomUUID().toString();
 
         JSONObject request = new JSONObject();
@@ -102,7 +106,7 @@ public final class XRPLedgerClient extends WebSocketClient {
     }
 
     public EnumSet<StreamSubscription> getActiveSubscriptions() {
-        return EnumSet.copyOf(activeSubscriptions.keySet());
+        return activeSubscriptions.isEmpty() ? EnumSet.noneOf(StreamSubscription.class) : EnumSet.copyOf(activeSubscriptions.keySet());
     }
 
     public void closeWhenComplete() {
@@ -121,9 +125,11 @@ public final class XRPLedgerClient extends WebSocketClient {
         LOG.info("XRPL client received a message:\n{}", message);
         JSONObject json = new JSONObject(message);
 
-        if (messageCount++ % 10 == 0) {
+        if (++messageCount % 10 == 0) {
             LOG.info("Pinging server (keepalive) after {} messages received", messageCount);
-            sendPing();
+            if (this.isOpen()) {
+                sendPing();
+            }
         }
 
         if (json.has(ATTRIBUTE_TYPE) && (StreamSubscription.byMessageType(json.getString(ATTRIBUTE_TYPE)) != null)) {
@@ -146,8 +152,7 @@ public final class XRPLedgerClient extends WebSocketClient {
 
     @Override
     public void onClose(int code, String reason, boolean remote) {
-        LOG.info("XRP ledger client closed because: {}", reason);
-        activeSubscriptions.values().forEach(t -> t.onClose(code, reason, remote));
+        LOG.info("XRP ledger client closed (code {}), reason given: {}", code, reason);
         activeSubscriptions.clear();
     }
 
@@ -160,7 +165,7 @@ public final class XRPLedgerClient extends WebSocketClient {
      * Example usage that shows how to send (raw) commands to the server and
      * how to handle the response.
      */
-    public static void main(String[] args) throws URISyntaxException, InterruptedException {
+    public static void main(String[] args) throws URISyntaxException, InterruptedException, InvalidStateException {
 
         // Example usage for sending commands to the server:
         XRPLedgerClient client = new XRPLedgerClient("wss://fh.xrpl.ws");
@@ -168,27 +173,28 @@ public final class XRPLedgerClient extends WebSocketClient {
         client.connectBlocking(3000, TimeUnit.MILLISECONDS);
         client.sendCommand("ledger_current", (response) -> {
             LOG.info(response.toString(4));
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException ex) {
-            };
         });
 
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("ledger_index", "validated");
         client.sendCommand("ledger", parameters, (response) -> {
             LOG.info(response.toString(4));
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException ex) {
-            };
+        });
+
+        List<String> transactions = new ArrayList<>();
+        client.subscribe(EnumSet.of(StreamSubscription.TRANSACTIONS), (subscription, message) -> {
+            LOG.info("Got message from subscription {}: {}", subscription.getMessageType(), message);
+            transactions.add(message.toString());
         });
 
         client.closeWhenComplete();
 
         while (client.isOpen()) {
+            LOG.info("Waiting for messages (transactions received: {})...", transactions.size());
             Thread.sleep(100);
-            LOG.info("Waiting for message...");
+            if (transactions.size() >= 30 && !client.getActiveSubscriptions().isEmpty()) {
+                client.unsubscribe(client.getActiveSubscriptions());
+            }
         }
     }
 
