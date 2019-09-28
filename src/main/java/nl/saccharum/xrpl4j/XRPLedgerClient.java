@@ -24,15 +24,15 @@ public final class XRPLedgerClient extends WebSocketClient {
     private static final Logger LOG = LoggerFactory.getLogger(XRPLedgerClient.class);
 
     private static final String COMMAND = "command";
+    private static final String STREAMS = "streams";
     private static final String CMD_SUBSCRIBE = "subscribe";
     private static final String CMD_UNSUBSCRIBE = "unsubscribe";
-    private static final String STREAMS = "streams";
     private static final String ATTRIBUTE_TYPE = "type";
     private static final String ATTRIBUTE_ID = "id";
 
     private final Map<StreamSubscription, StreamSubscriber> activeSubscriptions = new ConcurrentHashMap<>();
     private final Map<String, CommandListener> commandListeners = new ConcurrentHashMap<>();
-    private int messageCount = 0;
+
     private volatile boolean closeWhenComplete = false;
 
     public XRPLedgerClient(URI serverUri) {
@@ -82,7 +82,7 @@ public final class XRPLedgerClient extends WebSocketClient {
 
     public void unsubscribe(EnumSet<StreamSubscription> streams) throws InvalidStateException {
         checkOpen();
-        LOG.info("Unsubscribing to: {}", streams);
+        LOG.info("Unsubscribing from: {}", streams);
         send(composeSubscribe(CMD_UNSUBSCRIBE, streams));
         streams.forEach(t -> activeSubscriptions.remove(t));
     }
@@ -120,18 +120,11 @@ public final class XRPLedgerClient extends WebSocketClient {
         LOG.info("XRPL client received a message:\n{}", message);
         JSONObject json = new JSONObject(message);
 
-        if (++messageCount % 10 == 0) {
-            LOG.info("Pinging server (keepalive) after {} messages received", messageCount);
-            if (this.isOpen()) {
-                sendPing();
-            }
-        }
-
         if (json.has(ATTRIBUTE_TYPE) && (StreamSubscription.byMessageType(json.getString(ATTRIBUTE_TYPE)) != null)) {
-            StreamSubscription ss = StreamSubscription.byMessageType(json.getString(ATTRIBUTE_TYPE));
-            StreamSubscriber sub = activeSubscriptions.get(ss);
-            if (sub != null) {
-                sub.onSubscription(ss, json);
+            StreamSubscription subscription = StreamSubscription.byMessageType(json.getString(ATTRIBUTE_TYPE));
+            StreamSubscriber subscriber = activeSubscriptions.get(subscription);
+            if (subscriber != null) {
+                subscriber.onSubscription(subscription, json);
             }
         } else if (json.has(ATTRIBUTE_ID) && commandListeners.get(json.getString(ATTRIBUTE_ID)) != null) {
             commandListeners.get(json.getString(ATTRIBUTE_ID)).onResponse(json);
@@ -155,6 +148,8 @@ public final class XRPLedgerClient extends WebSocketClient {
     @Override
     public void onError(Exception exception) {
         LOG.error("XRP ledger client error {}", exception);
+        // clear activeSubscriptions and commandListeners?
+        // Is onError always followed by an onClose?
     }
 
 }
