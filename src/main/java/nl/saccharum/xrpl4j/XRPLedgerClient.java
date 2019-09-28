@@ -149,6 +149,7 @@ public final class XRPLedgerClient extends WebSocketClient {
     public void onClose(int code, String reason, boolean remote) {
         LOG.info("XRP ledger client closed (code {}), reason given: {}", code, reason);
         activeSubscriptions.clear();
+        commandListeners.clear();
     }
 
     @Override
