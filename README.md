@@ -53,7 +53,7 @@ public static void main(String[] args) throws URISyntaxException, InterruptedExc
         transactions.add(message.toString());
     });
 
-    // Tell the client to close when there are no more outstanding responses
+    // Tell the client to close when there are no more pending responses
     // for commands and all subscriptions have been unsubscribed.
     client.closeWhenComplete();
 
